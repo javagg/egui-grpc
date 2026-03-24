@@ -1,0 +1,16 @@
+[package]
+name = "server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-stream = "0.3"
+futures-core = "0.3"
+prost = "0.13"
+proto = { path = "../proto" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio-stream = { version = "0.1", features = ["time"] }
+tonic = { version = "0.12", features = ["transport"] }
+tonic-web = "0.12"
+tower-http = { version = "0.6", features = ["cors"] }
