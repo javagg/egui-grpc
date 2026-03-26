@@ -1,17 +1,38 @@
-use backend_core::{bidi_stream, client_stream, server_stream, unary, DemoInput};
+use backend_core::{
+    bidi_stream, client_stream, server_stream, surrealdb_read_test, surrealdb_roundtrip_test,
+    unary, DemoInput,
+};
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn run_action(action: &str, name: &str, message: &str) -> Result<Array, JsValue> {
+pub async fn run_action_async(action: &str, name: &str, message: &str) -> Result<Array, JsValue> {
     let out = Array::new();
 
     match action {
         "Unary" => {
-            out.push(&JsValue::from_str(&unary(DemoInput {
-                name: name.to_owned(),
-                message: message.to_owned(),
-            })));
+            if let Some(payload) = message.strip_prefix("db-test:") {
+                let line = surrealdb_roundtrip_test(DemoInput {
+                    name: name.to_owned(),
+                    message: payload.trim().to_owned(),
+                })
+                .await
+                .map_err(|e| JsValue::from_str(&e))?;
+                out.push(&JsValue::from_str(&line));
+            } else if let Some(payload) = message.strip_prefix("db-read:") {
+                let line = surrealdb_read_test(DemoInput {
+                    name: name.to_owned(),
+                    message: payload.trim().to_owned(),
+                })
+                .await
+                .map_err(|e| JsValue::from_str(&e))?;
+                out.push(&JsValue::from_str(&line));
+            } else {
+                out.push(&JsValue::from_str(&unary(DemoInput {
+                    name: name.to_owned(),
+                    message: message.to_owned(),
+                })));
+            }
         }
         "ServerStream" => {
             for line in server_stream(DemoInput {

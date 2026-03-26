@@ -2,7 +2,9 @@ use std::pin::Pin;
 
 use backend_core::{
     bidi_stream as core_bidi_stream, client_stream as core_client_stream,
-    server_stream as core_server_stream, unary as core_unary, DemoInput,
+    surrealdb_read_test as core_surrealdb_read_test,
+    server_stream as core_server_stream, surrealdb_roundtrip_test as core_surrealdb_roundtrip_test,
+    unary as core_unary, DemoInput,
 };
 use futures_core::Stream;
 use proto::demo::{
@@ -24,11 +26,34 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        let req = request.into_inner();
+        let HelloRequest { name, message } = request.into_inner();
+
+        if let Some(payload) = message.strip_prefix("db-test:") {
+            let db_result = core_surrealdb_roundtrip_test(DemoInput {
+                name,
+                message: payload.trim().to_string(),
+            })
+            .await
+            .map_err(Status::internal)?;
+
+            return Ok(Response::new(HelloReply { message: db_result }));
+        }
+
+        if let Some(payload) = message.strip_prefix("db-read:") {
+            let db_result = core_surrealdb_read_test(DemoInput {
+                name,
+                message: payload.trim().to_string(),
+            })
+            .await
+            .map_err(Status::internal)?;
+
+            return Ok(Response::new(HelloReply { message: db_result }));
+        }
+
         Ok(Response::new(HelloReply {
             message: core_unary(DemoInput {
-                name: req.name,
-                message: req.message,
+                name,
+                message,
             }),
         }))
     }
@@ -110,7 +135,9 @@ impl DemoService for DemoGrpcService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse()?;
+    let addr = std::env::var("GRPC_ADDR")
+        .unwrap_or_else(|_| "0.0.0.0:50051".to_string())
+        .parse()?;
     let service = DemoServiceServer::new(DemoGrpcService);
 
     println!("gRPC server listening on http://{addr}");

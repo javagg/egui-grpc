@@ -45,6 +45,10 @@ Run local-first end-to-end tests:
 
 - `npm run test:e2e`
 
+Run only remote surrealdb roundtrip e2e:
+
+- `npm run test:e2e:remote-db`
+
 Run in headed mode:
 
 - `npm run test:e2e:headed`
@@ -52,5 +56,7 @@ Run in headed mode:
 Coverage in current suite:
 
 - Unary in local-first mode
+- Unary in local-first mode + SurrealDB IndexedDB roundtrip (`db-test:*`)
 - ServerStream in local-first mode (5 chunks + completion)
 - BidiStream in local-first mode (3 chunks + completion)
+- Remote mode unary + Rust business surrealdb write/read roundtrip

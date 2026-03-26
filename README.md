@@ -66,6 +66,8 @@ npm run build
 该模式下，Vue 客户端不通过 gRPC 网络调用，而是通过 Web Worker + `postMessage`
 调用编译成 wasm 的 Rust 后端业务逻辑。
 
+在 local-first 模式中，SurrealDB 使用浏览器 `IndexedDB` 引擎（`kv-indxdb`）完成读写。
+
 ### 一次性准备
 
 安装 wasm-pack（如果未安装）：
@@ -91,6 +93,11 @@ npm run dev:local
 ```
 
 页面中将 `Mode` 切换到 `Local First (Worker + WASM)` 即可。
+
+可用以下消息前缀验证 SurrealDB：
+
+- `db-test:<value>`：写入并回读（期望 `DB_TEST_OK`）
+- `db-read:<value>`：仅读取既有数据（期望 `DB_READ_OK`）
 
 ## 在页面中测试
 

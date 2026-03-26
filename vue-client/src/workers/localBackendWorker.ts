@@ -1,6 +1,6 @@
 type WasmModule = {
   default: (input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module) => Promise<unknown>;
-  run_action: (action: string, name: string, message: string) => unknown[];
+  run_action_async: (action: string, name: string, message: string) => Promise<unknown[]>;
 };
 
 interface WorkerRequest {
@@ -33,7 +33,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     self.postMessage({ id: req.id, type: "started" });
     const wasmModule = await loadWasmModule();
-    const result = wasmModule.run_action(req.action, req.name, req.message);
+    const result = await wasmModule.run_action_async(req.action, req.name, req.message);
     for (const line of Array.from(result).map((x) => String(x))) {
       self.postMessage({ id: req.id, type: "data", line });
     }

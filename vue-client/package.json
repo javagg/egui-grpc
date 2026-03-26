@@ -11,7 +11,8 @@
     "dev:local": "npm run build:local-backend-wasm && vite",
     "build:local": "npm run build:local-backend-wasm && npm run build",
     "test:e2e": "npm run build:local-backend-wasm && playwright test",
-    "test:e2e:headed": "npm run build:local-backend-wasm && playwright test --headed"
+    "test:e2e:headed": "npm run build:local-backend-wasm && playwright test --headed",
+    "test:e2e:remote-db": "npm run build:local-backend-wasm && playwright test tests/e2e/remote-surrealdb.spec.ts"
   },
   "dependencies": {
     "protobufjs": "^7.4.0",
