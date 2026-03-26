@@ -6,13 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:local-backend-wasm": "wasm-pack build ../backend-worker-wasm --target web --out-dir ../vue-client/public/wasm/backend-worker-wasm",
+    "dev:local": "npm run build:local-backend-wasm && vite",
+    "build:local": "npm run build:local-backend-wasm && npm run build",
+    "test:e2e": "npm run build:local-backend-wasm && playwright test",
+    "test:e2e:headed": "npm run build:local-backend-wasm && playwright test --headed"
   },
   "dependencies": {
     "protobufjs": "^7.4.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",

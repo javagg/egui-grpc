@@ -5,3 +5,6 @@ client/dist/
 client/.trunk/
 vue-client/node_modules/
 vue-client/dist/
+vue-client/public/wasm/backend-worker-wasm/
+vue-client/playwright-report/
+vue-client/test-results/

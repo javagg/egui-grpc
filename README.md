@@ -61,6 +61,37 @@ cd vue-client
 npm run build
 ```
 
+## Vue Local First 模式（Web Worker + Rust WASM）
+
+该模式下，Vue 客户端不通过 gRPC 网络调用，而是通过 Web Worker + `postMessage`
+调用编译成 wasm 的 Rust 后端业务逻辑。
+
+### 一次性准备
+
+安装 wasm-pack（如果未安装）：
+
+```bash
+cargo install wasm-pack
+```
+
+### 生成本地 wasm 后端
+
+```bash
+cd vue-client
+npm run build:local-backend-wasm
+```
+
+会在 `vue-client/public/wasm/backend-worker-wasm/` 生成 Worker 需要的 wasm 资源。
+
+### 启动本地优先模式
+
+```bash
+cd vue-client
+npm run dev:local
+```
+
+页面中将 `Mode` 切换到 `Local First (Worker + WASM)` 即可。
+
 ## 在页面中测试
 
 1. 保持 `Server endpoint` 为 `http://127.0.0.1:50051`

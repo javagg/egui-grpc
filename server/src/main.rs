@@ -1,5 +1,9 @@
 use std::pin::Pin;
 
+use backend_core::{
+    bidi_stream as core_bidi_stream, client_stream as core_client_stream,
+    server_stream as core_server_stream, unary as core_unary, DemoInput,
+};
 use futures_core::Stream;
 use proto::demo::{
     demo_service_server::{DemoService, DemoServiceServer},
@@ -22,7 +26,10 @@ impl DemoService for DemoGrpcService {
     ) -> Result<Response<HelloReply>, Status> {
         let req = request.into_inner();
         Ok(Response::new(HelloReply {
-            message: format!("Unary: hello {}, message={}", req.name, req.message),
+            message: core_unary(DemoInput {
+                name: req.name,
+                message: req.message,
+            }),
         }))
     }
 
@@ -33,14 +40,15 @@ impl DemoService for DemoGrpcService {
         request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerStreamStream>, Status> {
         let req = request.into_inner();
-        let name = req.name;
+        let messages = core_server_stream(DemoInput {
+            name: req.name,
+            message: req.message,
+        });
 
         let stream = async_stream::try_stream! {
-            for idx in 1..=5 {
+            for line in messages {
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                yield HelloReply {
-                    message: format!("Server stream #{idx} -> {name}"),
-                };
+                yield HelloReply { message: line };
             }
         };
 
@@ -58,11 +66,18 @@ impl DemoService for DemoGrpcService {
         while let Some(item) = stream.next().await {
             let msg = item?;
             count += 1;
-            names.push(msg.name);
+            names.push(DemoInput {
+                name: msg.name,
+                message: msg.message,
+            });
         }
 
         Ok(Response::new(HelloReply {
-            message: format!("Client stream: received {} messages from {:?}", count, names),
+            message: if count == 0 {
+                core_client_stream(Vec::new())
+            } else {
+                core_client_stream(names)
+            },
         }))
     }
 
@@ -75,11 +90,17 @@ impl DemoService for DemoGrpcService {
         let mut input = request.into_inner();
 
         let output = async_stream::try_stream! {
+            let mut collected = Vec::new();
             while let Some(item) = input.next().await {
                 let req = item?;
-                yield HelloReply {
-                    message: format!("Bidi echo => {} says {}", req.name, req.message),
-                };
+                collected.push(DemoInput {
+                    name: req.name,
+                    message: req.message,
+                });
+            }
+
+            for line in core_bidi_stream(collected) {
+                yield HelloReply { message: line };
             }
         };
 

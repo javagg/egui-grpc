@@ -1,5 +1,5 @@
 [workspace]
-members = ["proto", "server", "client"]
+members = ["proto", "server", "client", "backend-core", "backend-worker-wasm"]
 resolver = "2"
 
 [workspace.package]
