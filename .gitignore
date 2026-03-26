@@ -3,3 +3,5 @@ target/
 Cargo.lock
 client/dist/
 client/.trunk/
+vue-client/node_modules/
+vue-client/dist/

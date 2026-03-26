@@ -2,7 +2,8 @@
 
 这个项目演示了一个 client-server 架构：
 - 服务端：`tonic` + `tonic-web`
-- 客户端：`egui/eframe`，支持编译为 wasm，并通过 `trunk` 在浏览器运行
+- 客户端1：`egui/eframe`，支持编译为 wasm，并通过 `trunk` 在浏览器运行
+- 客户端2：`Vue3 + TypeScript`，通过 `Vite` 运行与构建
 - gRPC 消息模式：Unary / Server Streaming / Client Streaming / Bidirectional Streaming
 
 ## 目录结构
@@ -10,6 +11,7 @@
 - `proto/`：共享 protobuf 与生成代码
 - `server/`：gRPC 服务实现
 - `client/`：egui 客户端（可 web 运行）
+- `vue-client/`：Vue3 + TypeScript + Vite 客户端
 
 ## 先决条件
 
@@ -39,6 +41,25 @@ trunk serve
 ```
 
 打开 trunk 输出的地址（通常是 `http://127.0.0.1:8080`）。
+
+## 启动 Vue3 + TypeScript 客户端（Vite）
+
+在另一个终端执行：
+
+```bash
+cd vue-client
+npm install
+npm run dev
+```
+
+打开 Vite 输出地址（通常是 `http://127.0.0.1:5173`）。
+
+生产构建：
+
+```bash
+cd vue-client
+npm run build
+```
 
 ## 在页面中测试
 
