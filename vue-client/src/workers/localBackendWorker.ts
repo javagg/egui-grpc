@@ -6,6 +6,7 @@ type WasmModule = {
 interface WorkerRequest {
   id: number;
   action: string;
+  token: string;
   name: string;
   message: string;
 }
@@ -14,6 +15,7 @@ let wasmReady: Promise<WasmModule> | null = null;
 const wasmModuleUrl = "/wasm/backend-worker-wasm/backend_worker_wasm.js";
 const wasmBinaryUrl = "/wasm/backend-worker-wasm/backend_worker_wasm_bg.wasm";
 const runtimeImport = new Function("u", "return import(u)") as (u: string) => Promise<unknown>;
+const expectedToken = import.meta.env.VITE_LOCAL_AUTH_TOKEN ?? "dev-token";
 
 async function loadWasmModule(): Promise<WasmModule> {
   if (!wasmReady) {
@@ -32,6 +34,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
   try {
     self.postMessage({ id: req.id, type: "started" });
+    if (req.token !== expectedToken) {
+      throw new Error("unauthorized local-first token");
+    }
     const wasmModule = await loadWasmModule();
     const result = await wasmModule.run_action_async(req.action, req.name, req.message);
     for (const line of Array.from(result).map((x) => String(x))) {

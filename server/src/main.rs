@@ -15,8 +15,26 @@ use tokio_stream::StreamExt;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::CorsLayer;
 
-#[derive(Default)]
-struct DemoGrpcService;
+struct DemoGrpcService {
+    expected_token: String,
+}
+
+impl DemoGrpcService {
+    fn authorize<T>(&self, request: &Request<T>) -> Result<(), Status> {
+        let auth = request
+            .metadata()
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| Status::unauthenticated("missing authorization header"))?;
+
+        let expected = format!("Bearer {}", self.expected_token);
+        if auth != expected {
+            return Err(Status::unauthenticated("invalid bearer token"));
+        }
+
+        Ok(())
+    }
+}
 
 type ReplyStream = Pin<Box<dyn Stream<Item = Result<HelloReply, Status>> + Send + 'static>>;
 
@@ -26,6 +44,7 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
+        self.authorize(&request)?;
         let HelloRequest { name, message } = request.into_inner();
 
         if let Some(payload) = message.strip_prefix("db-test:") {
@@ -64,6 +83,7 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerStreamStream>, Status> {
+        self.authorize(&request)?;
         let req = request.into_inner();
         let messages = core_server_stream(DemoInput {
             name: req.name,
@@ -84,6 +104,7 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
+        self.authorize(&request)?;
         let mut stream = request.into_inner();
         let mut count = 0usize;
         let mut names = Vec::new();
@@ -112,6 +133,7 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<Self::BidiStreamStream>, Status> {
+        self.authorize(&request)?;
         let mut input = request.into_inner();
 
         let output = async_stream::try_stream! {
@@ -135,10 +157,11 @@ impl DemoService for DemoGrpcService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let expected_token = std::env::var("GRPC_AUTH_TOKEN").unwrap_or_else(|_| "dev-token".to_string());
     let addr = std::env::var("GRPC_ADDR")
         .unwrap_or_else(|_| "0.0.0.0:50051".to_string())
         .parse()?;
-    let service = DemoServiceServer::new(DemoGrpcService);
+    let service = DemoServiceServer::new(DemoGrpcService { expected_token });
 
     println!("gRPC server listening on http://{addr}");
 

@@ -23,6 +23,15 @@
       </div>
 
       <div class="form-row">
+        <label>Bearer Token</label>
+        <input
+          v-model="authToken"
+          placeholder="dev-token"
+          data-testid="token-input"
+        />
+      </div>
+
+      <div class="form-row">
         <label>Name</label>
         <input v-model="name" data-testid="name-input" />
       </div>
@@ -57,6 +66,7 @@ import { callLocalBackendStream } from "./local/workerClient";
 const endpoint = ref("http://127.0.0.1:50051");
 const name = ref("vue-user");
 const message = ref("hello grpc from vue");
+const authToken = ref("dev-token");
 const logs = ref<string[]>(["Ready. Click any gRPC pattern button."]);
 const busy = ref(false);
 const mode = ref<"remote" | "local">("remote");
@@ -84,14 +94,18 @@ async function runUnary(): Promise<void> {
   await runWithGuard(async () => {
     if (mode.value === "local") {
       pushLog("Calling Unary in local-first mode...");
-      await callLocalBackendStream("Unary", name.value, message.value, (line) => {
+      await callLocalBackendStream("Unary", authToken.value, name.value, message.value, (line) => {
         pushLog(`Unary response: ${line}`);
       });
       return;
     }
 
     pushLog("Calling Unary in remote gRPC-web mode...");
-    const reply = await sayHello(endpoint.value, { name: name.value, message: message.value });
+    const reply = await sayHello(
+      endpoint.value,
+      { name: name.value, message: message.value },
+      authToken.value,
+    );
     pushLog(`Unary response: ${reply.message}`);
   });
 }
@@ -100,7 +114,7 @@ async function runServerStream(): Promise<void> {
   await runWithGuard(async () => {
     if (mode.value === "local") {
       pushLog("Calling ServerStream in local-first mode...");
-      await callLocalBackendStream("ServerStream", name.value, message.value, (line) => {
+      await callLocalBackendStream("ServerStream", authToken.value, name.value, message.value, (line) => {
         pushLog(`ServerStream -> ${line}`);
       });
       pushLog("ServerStream completed");
@@ -108,7 +122,11 @@ async function runServerStream(): Promise<void> {
     }
 
     pushLog("Calling ServerStream in remote gRPC-web mode...");
-    await serverStream(endpoint.value, { name: name.value, message: message.value }, (reply) =>
+    await serverStream(
+      endpoint.value,
+      { name: name.value, message: message.value },
+      authToken.value,
+      (reply) =>
       pushLog(`ServerStream -> ${reply.message}`),
     );
     pushLog("ServerStream completed");
@@ -119,7 +137,7 @@ async function runClientStream(): Promise<void> {
   await runWithGuard(async () => {
     if (mode.value === "local") {
       pushLog("Calling ClientStream in local-first mode...");
-      await callLocalBackendStream("ClientStream", name.value, message.value, (line) => {
+      await callLocalBackendStream("ClientStream", authToken.value, name.value, message.value, (line) => {
         pushLog(`ClientStream response: ${line}`);
       });
       return;
@@ -130,7 +148,7 @@ async function runClientStream(): Promise<void> {
       { name: name.value, message: `${message.value} #1` },
       { name: name.value, message: `${message.value} #2` },
       { name: name.value, message: `${message.value} #3` },
-    ]);
+    ], authToken.value);
     pushLog(`ClientStream response: ${reply.message}`);
   });
 }
@@ -139,7 +157,7 @@ async function runBidiStream(): Promise<void> {
   await runWithGuard(async () => {
     if (mode.value === "local") {
       pushLog("Calling BidiStream in local-first mode...");
-      await callLocalBackendStream("BidiStream", name.value, message.value, (line) => {
+      await callLocalBackendStream("BidiStream", authToken.value, name.value, message.value, (line) => {
         pushLog(`BidiStream <- ${line}`);
       });
       pushLog("BidiStream completed");
@@ -154,6 +172,7 @@ async function runBidiStream(): Promise<void> {
         { name: name.value, message: `${message.value} B` },
         { name: name.value, message: `${message.value} C` },
       ],
+      authToken.value,
       (reply) => pushLog(`BidiStream <- ${reply.message}`),
     );
     pushLog("BidiStream completed");

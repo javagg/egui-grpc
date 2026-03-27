@@ -3,6 +3,7 @@ export type RpcAction = "Unary" | "ServerStream" | "ClientStream" | "BidiStream"
 interface WorkerRequest {
   id: number;
   action: RpcAction;
+  token: string;
   name: string;
   message: string;
 }
@@ -90,14 +91,16 @@ function getWorker(): Worker {
 
 export async function callLocalBackend(
   action: RpcAction,
+  token: string,
   name: string,
   message: string,
 ): Promise<string[]> {
-  return callLocalBackendStream(action, name, message);
+  return callLocalBackendStream(action, token, name, message);
 }
 
 export async function callLocalBackendStream(
   action: RpcAction,
+  token: string,
   name: string,
   message: string,
   onLine?: (line: string) => void,
@@ -105,7 +108,7 @@ export async function callLocalBackendStream(
   const w = getWorker();
   const id = nextId++;
 
-  const req: WorkerRequest = { id, action, name, message };
+  const req: WorkerRequest = { id, action, token, name, message };
 
   return new Promise<string[]>((resolve, reject) => {
     pending.set(id, { lines: [], onLine, resolve, reject });

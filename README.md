@@ -31,6 +31,8 @@ cargo run -p server
 
 默认监听：`http://127.0.0.1:50051`
 
+默认认证 token：`dev-token`（可通过环境变量 `GRPC_AUTH_TOKEN` 修改）。
+
 ## 启动 Web 客户端
 
 在另一个终端执行：
@@ -67,6 +69,7 @@ npm run build
 调用编译成 wasm 的 Rust 后端业务逻辑。
 
 在 local-first 模式中，SurrealDB 使用浏览器 `IndexedDB` 引擎（`kv-indxdb`）完成读写。
+local-first 模式同样要求 Bearer Token（默认 `dev-token`，可通过 `VITE_LOCAL_AUTH_TOKEN` 修改）。
 
 ### 一次性准备
 
@@ -102,12 +105,13 @@ npm run dev:local
 ## 在页面中测试
 
 1. 保持 `Server endpoint` 为 `http://127.0.0.1:50051`
-2. 依次点击按钮：
+2. 将 `Bearer Token` 设为与当前模式的服务端/Worker 一致（默认 `dev-token`）
+3. 依次点击按钮：
    - `Unary`
    - `Server Stream`
    - `Client Stream`
    - `Bidirectional Stream`
-3. 在 `Logs` 区域观察每种模式的返回结果
+4. 在 `Logs` 区域观察每种模式的返回结果
 
 ## 额外说明
 

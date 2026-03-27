@@ -98,6 +98,7 @@ async function grpcWebRequest(
   endpoint: string,
   method: string,
   requestFrames: Uint8Array[],
+  token?: string,
   onMessage?: (payload: Uint8Array) => void,
 ): Promise<HelloReply[]> {
   const url = joinUrl(endpoint, `${SERVICE_PATH}/${method}`);
@@ -114,6 +115,7 @@ async function grpcWebRequest(
       "content-type": "application/grpc-web+proto",
       "x-grpc-web": "1",
       "x-user-agent": "grpc-web-vue-demo",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     body: bodyBuffer,
   });
@@ -132,8 +134,8 @@ async function grpcWebRequest(
   return messages.map((m) => decodeHelloReply(m));
 }
 
-export async function sayHello(endpoint: string, req: HelloRequest): Promise<HelloReply> {
-  const replies = await grpcWebRequest(endpoint, "SayHello", [frameMessage(encodeHelloRequest(req))]);
+export async function sayHello(endpoint: string, req: HelloRequest, token?: string): Promise<HelloReply> {
+  const replies = await grpcWebRequest(endpoint, "SayHello", [frameMessage(encodeHelloRequest(req))], token);
   if (replies.length === 0) {
     throw new Error("No reply from server");
   }
@@ -143,10 +145,11 @@ export async function sayHello(endpoint: string, req: HelloRequest): Promise<Hel
 export async function serverStream(
   endpoint: string,
   req: HelloRequest,
+  token?: string,
   onReply?: (reply: HelloReply) => void,
 ): Promise<HelloReply[]> {
   const replies: HelloReply[] = [];
-  await grpcWebRequest(endpoint, "ServerStream", [frameMessage(encodeHelloRequest(req))], (payload) => {
+  await grpcWebRequest(endpoint, "ServerStream", [frameMessage(encodeHelloRequest(req))], token, (payload) => {
     const msg = decodeHelloReply(payload);
     replies.push(msg);
     onReply?.(msg);
@@ -154,9 +157,9 @@ export async function serverStream(
   return replies;
 }
 
-export async function clientStream(endpoint: string, reqs: HelloRequest[]): Promise<HelloReply> {
+export async function clientStream(endpoint: string, reqs: HelloRequest[], token?: string): Promise<HelloReply> {
   const frames = reqs.map((req) => frameMessage(encodeHelloRequest(req)));
-  const replies = await grpcWebRequest(endpoint, "ClientStream", frames);
+  const replies = await grpcWebRequest(endpoint, "ClientStream", frames, token);
   if (replies.length === 0) {
     throw new Error("No reply from server");
   }
@@ -166,11 +169,12 @@ export async function clientStream(endpoint: string, reqs: HelloRequest[]): Prom
 export async function bidiStream(
   endpoint: string,
   reqs: HelloRequest[],
+  token?: string,
   onReply?: (reply: HelloReply) => void,
 ): Promise<HelloReply[]> {
   const frames = reqs.map((req) => frameMessage(encodeHelloRequest(req)));
   const replies: HelloReply[] = [];
-  await grpcWebRequest(endpoint, "BidiStream", frames, (payload) => {
+  await grpcWebRequest(endpoint, "BidiStream", frames, token, (payload) => {
     const msg = decodeHelloReply(payload);
     replies.push(msg);
     onReply?.(msg);

@@ -11,6 +11,19 @@
 
 Default dev URL: `http://127.0.0.1:5173`
 
+## Remote gRPC-Web Token Auth
+
+- Server expects `Authorization: Bearer <token>`
+- Default server token is `dev-token` (override via `GRPC_AUTH_TOKEN`)
+- In UI, set `Bearer Token` to match server token
+
+## Local-First Token Auth
+
+- Worker also checks bearer token in local-first mode
+- Default local-first token is `dev-token`
+- Override with Vite env var `VITE_LOCAL_AUTH_TOKEN`
+- UI uses the same `Bearer Token` field for remote and local-first modes
+
 ## Local First Mode (Worker + Rust WASM)
 
 1. Install `wasm-pack` if needed:

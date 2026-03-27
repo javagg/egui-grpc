@@ -12,6 +12,18 @@ test("local-first unary runs without server", async ({ page }) => {
   await expect(page.getByTestId("status-text")).toHaveText("Idle");
 });
 
+test("local-first unary is rejected when bearer token is invalid", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("mode-select").selectOption("local");
+  await page.getByTestId("token-input").fill("wrong-token");
+  await page.getByTestId("name-input").fill("alice");
+  await page.getByTestId("message-input").fill("from unary");
+
+  await page.getByTestId("btn-unary").click();
+
+  await expect(page.getByText(/Error: Error: unauthorized local-first token/i)).toBeVisible();
+});
+
 test("local-first unary can trigger surrealdb indexeddb roundtrip", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("mode-select").selectOption("local");
