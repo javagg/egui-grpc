@@ -5,14 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:remote": "vite --mode remote",
     "build": "vue-tsc --noEmit && vite build",
+    "build:remote": "vue-tsc --noEmit && vite build --mode remote",
     "preview": "vite preview",
     "build:local-backend-wasm": "wasm-pack build ../backend-worker-wasm --target web --out-dir ../vue-client/public/wasm/backend-worker-wasm",
     "dev:local": "npm run build:local-backend-wasm && vite",
     "build:local": "npm run build:local-backend-wasm && npm run build",
-    "test:e2e": "npm run build:local-backend-wasm && playwright test",
+    "test:e2e": "npm run build:local-backend-wasm && playwright test tests/e2e/local-first.spec.ts tests/e2e/local-projects.spec.ts",
+    "test:e2e:remote": "npm run build:local-backend-wasm && playwright test -c playwright.remote.config.ts tests/e2e/remote-surrealdb.spec.ts tests/e2e/remote-projects.spec.ts",
     "test:e2e:headed": "npm run build:local-backend-wasm && playwright test --headed",
-    "test:e2e:remote-db": "npm run build:local-backend-wasm && playwright test tests/e2e/remote-surrealdb.spec.ts"
+    "test:e2e:remote-db": "npm run build:local-backend-wasm && playwright test -c playwright.remote.config.ts tests/e2e/remote-surrealdb.spec.ts",
+    "test:e2e:remote-project": "npm run build:local-backend-wasm && playwright test -c playwright.remote.config.ts tests/e2e/remote-projects.spec.ts"
   },
   "dependencies": {
     "protobufjs": "^7.4.0",

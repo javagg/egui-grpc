@@ -51,12 +51,14 @@
         </div>
 
         <div class="actions">
-          <button type="submit" data-testid="project-submit-btn">{{ editingId ? "更新项目" : "创建项目" }}</button>
-          <button v-if="editingId" type="button" @click="resetForm">取消编辑</button>
+          <button :disabled="projectsLoading" type="submit" data-testid="project-submit-btn">{{ editingId ? "更新项目" : "创建项目" }}</button>
+          <button v-if="editingId" :disabled="projectsLoading" type="button" @click="cancelEdit">取消编辑</button>
         </div>
 
         <p class="status" data-testid="project-status">{{ statusText }}</p>
       </form>
+
+      <p v-if="projectsLoading" class="status">项目数据加载中...</p>
 
       <div v-if="allProjects.length === 0" class="empty-state" data-testid="project-empty">
         还没有项目。先创建一个仿真项目开始。
@@ -89,12 +91,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { authSession } from "../auth/session";
 import {
   allProjects,
   createProject,
   deleteProject,
+  projectsLoading,
+  refreshProjects,
   type Project,
   updateProject,
 } from "../projects/projectStore";
@@ -125,7 +129,7 @@ function normalizeMemberIds(raw: string): string[] {
     .filter((item) => item.length > 0);
 }
 
-function resetForm(): void {
+function resetForm(clearStatus = true): void {
   editingId.value = "";
   form.value = {
     name: "",
@@ -133,10 +137,16 @@ function resetForm(): void {
     ownerUserId: authSession.currentUser,
     membersRaw: "",
   };
-  statusText.value = "填写项目信息后点击创建。";
+  if (clearStatus) {
+    statusText.value = "填写项目信息后点击创建。";
+  }
 }
 
-function submitForm(): void {
+function cancelEdit(): void {
+  resetForm();
+}
+
+async function submitForm(): Promise<void> {
   try {
     const ownerUserId = form.value.ownerUserId.trim().length > 0
       ? form.value.ownerUserId.trim()
@@ -150,15 +160,15 @@ function submitForm(): void {
     };
 
     if (editingId.value) {
-      const updated = updateProject(editingId.value, payload);
+      const updated = await updateProject(editingId.value, payload);
       statusText.value = `已更新项目：${updated.name}`;
-      resetForm();
+      resetForm(false);
       return;
     }
 
-    const created = createProject(payload);
+    const created = await createProject(payload);
     statusText.value = `已创建项目：${created.name}`;
-    resetForm();
+    resetForm(false);
   } catch (error) {
     statusText.value = `Error: ${String(error)}`;
   }
@@ -175,20 +185,37 @@ function startEdit(project: Project): void {
   statusText.value = `正在编辑：${project.name}`;
 }
 
-function removeProject(projectId: string): void {
+async function removeProject(projectId: string): Promise<void> {
   if (editingId.value === projectId) {
     resetForm();
   }
 
-  deleteProject(projectId);
-  statusText.value = "已删除项目。";
+  try {
+    await deleteProject(projectId);
+    statusText.value = "已删除项目。";
+  } catch (error) {
+    statusText.value = `Error: ${String(error)}`;
+  }
 }
 
 function formatDate(value: string): string {
+  const num = Number(value);
+  if (!Number.isNaN(num)) {
+    return new Date(num).toLocaleString();
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
   return date.toLocaleString();
 }
+
+onMounted(async () => {
+  try {
+    await refreshProjects();
+  } catch (error) {
+    statusText.value = `Error: ${String(error)}`;
+  }
+});
 </script>

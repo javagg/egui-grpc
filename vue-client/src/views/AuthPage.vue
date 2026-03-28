@@ -6,19 +6,11 @@
       <p class="hint">完成身份验证后进入电磁仿真 SaaS 主页面。</p>
 
       <div class="form-row">
-        <label>Mode</label>
-        <select v-model="mode" data-testid="auth-mode-select">
-          <option value="remote">Remote gRPC-Web</option>
-          <option value="local">Local First (Worker + WASM)</option>
-        </select>
-      </div>
-
-      <div class="form-row">
         <label>Server endpoint</label>
         <input
           v-model="endpoint"
           placeholder="http://127.0.0.1:50051"
-          :disabled="mode === 'local'"
+          :disabled="RUNTIME_MODE === 'local'"
           data-testid="auth-endpoint-input"
         />
       </div>
@@ -44,7 +36,7 @@
       </div>
 
       <div class="status" data-testid="auth-status">{{ statusText }}</div>
-      <p v-if="mode === 'local'" class="hint">Local 模式下不支持动态注册，请使用配置好的管理员账号。</p>
+      <p v-if="RUNTIME_MODE === 'local'" class="hint">Local 模式下不支持动态注册，请使用配置好的管理员账号。</p>
       <RouterLink class="ghost-link" to="/">返回产品页</RouterLink>
     </section>
   </main>
@@ -53,13 +45,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import { authSession, setAuthSession, updateAuthConfig, type AppMode } from "../auth/session";
+import { authSession, setAuthSession, updateAuthConfig } from "../auth/session";
 import { login, register } from "../grpc/grpcWeb";
+import { RUNTIME_MODE } from "../runtimeMode";
 
 const router = useRouter();
 const route = useRoute();
 
-const mode = ref<AppMode>(authSession.mode);
 const endpoint = ref(authSession.endpoint);
 const username = ref("admin");
 const password = ref("admin123456");
@@ -70,9 +62,7 @@ const localExpectedToken = import.meta.env.VITE_LOCAL_AUTH_TOKEN ?? "dev-token";
 const localAdminUsername = import.meta.env.VITE_LOCAL_ADMIN_USERNAME ?? "admin";
 const localAdminPassword = import.meta.env.VITE_LOCAL_ADMIN_PASSWORD ?? "admin123456";
 
-watch(mode, (value) => {
-  updateAuthConfig({ mode: value });
-});
+updateAuthConfig({ mode: RUNTIME_MODE });
 
 watch(endpoint, (value) => {
   updateAuthConfig({ endpoint: value });
@@ -108,7 +98,7 @@ async function runLogin(): Promise<void> {
   await runWithGuard(async () => {
     ensureInputs();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       if (username.value !== localAdminUsername || password.value !== localAdminPassword) {
         throw new Error("invalid local admin credentials");
       }
@@ -117,7 +107,7 @@ async function runLogin(): Promise<void> {
         token: localExpectedToken,
         currentUser: username.value,
         isSuperuser: true,
-        mode: mode.value,
+        mode: RUNTIME_MODE,
         endpoint: endpoint.value,
       });
       statusText.value = `Local login success: ${username.value}`;
@@ -134,7 +124,7 @@ async function runLogin(): Promise<void> {
       token: reply.token,
       currentUser: reply.username,
       isSuperuser: reply.isSuperuser,
-      mode: mode.value,
+      mode: RUNTIME_MODE,
       endpoint: endpoint.value,
     });
 
@@ -147,7 +137,7 @@ async function runRegister(): Promise<void> {
   await runWithGuard(async () => {
     ensureInputs();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       throw new Error("local-first mode does not support dynamic register");
     }
 
@@ -164,7 +154,7 @@ async function runRegister(): Promise<void> {
       token: reply.token,
       currentUser: reply.username,
       isSuperuser: reply.isSuperuser,
-      mode: mode.value,
+      mode: RUNTIME_MODE,
       endpoint: endpoint.value,
     });
 

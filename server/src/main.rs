@@ -3,15 +3,21 @@ use std::{collections::HashMap, sync::Arc};
 
 use backend_core::{
     bidi_stream as core_bidi_stream, client_stream as core_client_stream,
+    create_project as core_create_project, delete_project as core_delete_project,
+    list_projects_for_user as core_list_projects_for_user,
     surrealdb_read_test as core_surrealdb_read_test,
     server_stream as core_server_stream, surrealdb_roundtrip_test as core_surrealdb_roundtrip_test,
+    update_project as core_update_project, CreateProjectInput as CoreCreateProjectInput,
     unary as core_unary, DemoInput,
+    UpdateProjectInput as CoreUpdateProjectInput,
 };
 use futures_core::Stream;
 use proto::demo::{
+    CreateProjectReply, CreateProjectRequest, DeleteProjectReply, DeleteProjectRequest,
     demo_service_server::{DemoService, DemoServiceServer},
-    HelloReply, HelloRequest, LoginReply, LoginRequest, LogoutReply, LogoutRequest,
-    RegisterReply, RegisterRequest,
+    HelloReply, HelloRequest, ListProjectsReply, ListProjectsRequest, LoginReply, LoginRequest,
+    LogoutReply, LogoutRequest, Project, RegisterReply, RegisterRequest, UpdateProjectReply,
+    UpdateProjectRequest,
 };
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
@@ -75,6 +81,34 @@ impl DemoGrpcService {
         }
 
         Ok(())
+    }
+
+    async fn resolve_user_by_token(&self, token: &str) -> Result<UserAccount, Status> {
+        let username = {
+            let sessions = self.sessions.read().await;
+            sessions
+                .get(token)
+                .cloned()
+                .ok_or_else(|| Status::unauthenticated("invalid bearer token"))?
+        };
+
+        let users = self.users.read().await;
+        users
+            .get(&username)
+            .cloned()
+            .ok_or_else(|| Status::unauthenticated("invalid bearer token"))
+    }
+
+    fn to_proto_project(project: backend_core::ProjectRecord) -> Project {
+        Project {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            owner_user_id: project.owner_user_id,
+            member_user_ids: project.member_user_ids,
+            created_at: project.created_at,
+            updated_at: project.updated_at,
+        }
     }
 }
 
@@ -165,6 +199,93 @@ impl DemoService for DemoGrpcService {
         }
 
         Ok(Response::new(LogoutReply { ok: true }))
+    }
+
+    async fn create_project(
+        &self,
+        request: Request<CreateProjectRequest>,
+    ) -> Result<Response<CreateProjectReply>, Status> {
+        let token = Self::extract_bearer_token(&request)?;
+        let user = self.resolve_user_by_token(&token).await?;
+        let CreateProjectRequest {
+            name,
+            description,
+            member_user_ids,
+        } = request.into_inner();
+
+        let project_id = Uuid::new_v4().to_string();
+        let created = core_create_project(CoreCreateProjectInput {
+            id: project_id,
+            name,
+            description,
+            owner_user_id: user.username,
+            member_user_ids,
+        })
+        .map_err(Status::invalid_argument)?;
+
+        Ok(Response::new(CreateProjectReply {
+            project: Some(Self::to_proto_project(created)),
+        }))
+    }
+
+    async fn list_projects(
+        &self,
+        request: Request<ListProjectsRequest>,
+    ) -> Result<Response<ListProjectsReply>, Status> {
+        let token = Self::extract_bearer_token(&request)?;
+        let user = self.resolve_user_by_token(&token).await?;
+        let projects = core_list_projects_for_user(&user.username)
+            .into_iter()
+            .map(Self::to_proto_project)
+            .collect::<Vec<Project>>();
+
+        Ok(Response::new(ListProjectsReply { projects }))
+    }
+
+    async fn update_project(
+        &self,
+        request: Request<UpdateProjectRequest>,
+    ) -> Result<Response<UpdateProjectReply>, Status> {
+        let token = Self::extract_bearer_token(&request)?;
+        let user = self.resolve_user_by_token(&token).await?;
+        let UpdateProjectRequest {
+            id,
+            name,
+            description,
+            owner_user_id,
+            member_user_ids,
+        } = request.into_inner();
+
+        let updated = core_update_project(
+            &user.username,
+            user.is_superuser,
+            CoreUpdateProjectInput {
+                id,
+                name,
+                description,
+                owner_user_id,
+                member_user_ids,
+            },
+        )
+        .map_err(Status::invalid_argument)?;
+
+        Ok(Response::new(UpdateProjectReply {
+            project: Some(Self::to_proto_project(updated)),
+        }))
+    }
+
+    async fn delete_project(
+        &self,
+        request: Request<DeleteProjectRequest>,
+    ) -> Result<Response<DeleteProjectReply>, Status> {
+        let token = Self::extract_bearer_token(&request)?;
+        let user = self.resolve_user_by_token(&token).await?;
+        let DeleteProjectRequest { id } = request.into_inner();
+
+        core_delete_project(&user.username, user.is_superuser, &id)
+            .map_err(Status::invalid_argument)?;
+
+        Ok(Response::new(DeleteProjectReply { ok: true }))
     }
 
     async fn say_hello(

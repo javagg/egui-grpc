@@ -5,7 +5,6 @@ async function loginLocal(page: Page): Promise<void> {
     return;
   }
 
-  await page.getByTestId("auth-mode-select").selectOption("local");
   await page.getByTestId("auth-username-input").fill("admin");
   await page.getByTestId("auth-password-input").fill("admin123456");
   await page.getByTestId("auth-btn-login").click();
@@ -26,7 +25,6 @@ test("local-first unary runs without server", async ({ page }) => {
 
 test("local-first login is rejected when password is invalid", async ({ page }) => {
   await page.goto("/auth");
-  await page.getByTestId("auth-mode-select").selectOption("local");
   await page.getByTestId("auth-username-input").fill("admin");
   await page.getByTestId("auth-password-input").fill("wrong-password");
   await page.getByTestId("auth-btn-login").click();

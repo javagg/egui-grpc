@@ -1,19 +1,35 @@
 import {
+  decodeCreateProjectReply,
+  decodeDeleteProjectReply,
   decodeHelloReply,
+  decodeListProjectsReply,
   decodeLoginReply,
   decodeLogoutReply,
   decodeRegisterReply,
+  decodeUpdateProjectReply,
+  encodeCreateProjectRequest,
+  encodeDeleteProjectRequest,
   encodeHelloRequest,
+  encodeListProjectsRequest,
   encodeLoginRequest,
   encodeLogoutRequest,
   encodeRegisterRequest,
+  encodeUpdateProjectRequest,
+  type CreateProjectReply,
+  type CreateProjectRequest,
+  type DeleteProjectReply,
+  type DeleteProjectRequest,
   type HelloReply,
   type HelloRequest,
+  type ListProjectsReply,
+  type ListProjectsRequest,
   type LoginReply,
   type LoginRequest,
   type LogoutReply,
   type RegisterReply,
   type RegisterRequest,
+  type UpdateProjectReply,
+  type UpdateProjectRequest,
 } from "./messages";
 
 const SERVICE_PATH = "/demo.DemoService";
@@ -185,6 +201,78 @@ export async function logout(endpoint: string, token: string): Promise<LogoutRep
   );
   if (replies.length === 0) {
     throw new Error("No logout reply from server");
+  }
+  return replies[0];
+}
+
+export async function createProject(
+  endpoint: string,
+  req: CreateProjectRequest,
+  token: string,
+): Promise<CreateProjectReply> {
+  const replies = await grpcWebRequest(
+    endpoint,
+    "CreateProject",
+    [frameMessage(encodeCreateProjectRequest(req))],
+    decodeCreateProjectReply,
+    token,
+  );
+  if (replies.length === 0) {
+    throw new Error("No create project reply from server");
+  }
+  return replies[0];
+}
+
+export async function listProjects(
+  endpoint: string,
+  req: ListProjectsRequest,
+  token: string,
+): Promise<ListProjectsReply> {
+  const replies = await grpcWebRequest(
+    endpoint,
+    "ListProjects",
+    [frameMessage(encodeListProjectsRequest(req))],
+    decodeListProjectsReply,
+    token,
+  );
+  if (replies.length === 0) {
+    throw new Error("No list projects reply from server");
+  }
+  return replies[0];
+}
+
+export async function updateProject(
+  endpoint: string,
+  req: UpdateProjectRequest,
+  token: string,
+): Promise<UpdateProjectReply> {
+  const replies = await grpcWebRequest(
+    endpoint,
+    "UpdateProject",
+    [frameMessage(encodeUpdateProjectRequest(req))],
+    decodeUpdateProjectReply,
+    token,
+  );
+  if (replies.length === 0) {
+    throw new Error("No update project reply from server");
+  }
+  return replies[0];
+}
+
+export async function deleteProject(
+  endpoint: string,
+  req: DeleteProjectRequest,
+  token: string,
+): Promise<DeleteProjectReply> {
+  const replies = await grpcWebRequest(
+    endpoint,
+    "DeleteProject",
+    [frameMessage(encodeDeleteProjectRequest(req))],
+    decodeDeleteProjectReply,
+    token,
+  );
+  if (replies.length === 0) {
+    throw new Error("No delete project reply from server");
   }
   return replies[0];
 }

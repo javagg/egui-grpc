@@ -43,10 +43,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { authSession, clearAuthSession } from "../auth/session";
 import { logout } from "../grpc/grpcWeb";
+import { refreshProjects } from "../projects/projectStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -78,4 +79,27 @@ async function runLogout(): Promise<void> {
     await router.replace("/auth?next=/app/home");
   }
 }
+
+async function syncProjectsSilently(): Promise<void> {
+  if (!authSession.token || !authSession.currentUser) {
+    return;
+  }
+
+  try {
+    await refreshProjects();
+  } catch {
+    // Ignore project refresh errors here; project page will show details if needed.
+  }
+}
+
+onMounted(() => {
+  void syncProjectsSilently();
+});
+
+watch(
+  () => `${authSession.token}:${authSession.currentUser}:${authSession.mode}:${authSession.endpoint}`,
+  () => {
+    void syncProjectsSilently();
+  },
+);
 </script>

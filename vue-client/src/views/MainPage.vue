@@ -8,19 +8,11 @@
       </p>
 
       <div class="form-row">
-        <label>Mode</label>
-        <select v-model="mode" data-testid="mode-select">
-          <option value="remote">Remote gRPC-Web</option>
-          <option value="local">Local First (Worker + WASM)</option>
-        </select>
-      </div>
-
-      <div class="form-row">
         <label>Server endpoint</label>
         <input
           v-model="endpoint"
           placeholder="http://127.0.0.1:50051"
-          :disabled="mode === 'local'"
+          :disabled="RUNTIME_MODE === 'local'"
           data-testid="endpoint-input"
         />
       </div>
@@ -54,28 +46,18 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import { authSession, clearAuthSession, updateAuthConfig, type AppMode } from "../auth/session";
+import { authSession, updateAuthConfig } from "../auth/session";
 import { bidiStream, clientStream, sayHello, serverStream } from "../grpc/grpcWeb";
 import { callLocalBackendStream } from "../local/workerClient";
+import { RUNTIME_MODE } from "../runtimeMode";
 
-const router = useRouter();
-
-const mode = ref<AppMode>(authSession.mode);
 const endpoint = ref(authSession.endpoint);
 const name = ref("vue-user");
 const message = ref("hello grpc from vue");
 const logs = ref<string[]>(["Ready. Choose a gRPC pattern and run."]);
 const busy = ref(false);
 
-watch(mode, (next, prev) => {
-  updateAuthConfig({ mode: next });
-  if (next !== prev) {
-    clearAuthSession({ preserveConfig: true });
-    pushLog("Mode changed. Please login again.");
-    void router.replace("/auth?next=/app/test");
-  }
-});
+updateAuthConfig({ mode: RUNTIME_MODE });
 
 watch(endpoint, (value) => {
   updateAuthConfig({ endpoint: value });
@@ -107,22 +89,11 @@ function tokenOrThrow(): string {
   throw new Error("not logged in");
 }
 
-async function runLogout(): Promise<void> {
-  await runWithGuard(async () => {
-    const token = tokenOrThrow();
-
-    const user = authSession.currentUser;
-    clearAuthSession({ preserveConfig: true });
-    pushLog(`Logged out ${user}`);
-    await router.replace("/auth?next=/app/test");
-  });
-}
-
 async function runUnary(): Promise<void> {
   await runWithGuard(async () => {
     const token = tokenOrThrow();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       pushLog("Calling Unary in local-first mode...");
       await callLocalBackendStream("Unary", token, name.value, message.value, (line) => {
         pushLog(`Unary response: ${line}`);
@@ -140,7 +111,7 @@ async function runServerStream(): Promise<void> {
   await runWithGuard(async () => {
     const token = tokenOrThrow();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       pushLog("Calling ServerStream in local-first mode...");
       await callLocalBackendStream("ServerStream", token, name.value, message.value, (line) => {
         pushLog(`ServerStream -> ${line}`);
@@ -161,7 +132,7 @@ async function runClientStream(): Promise<void> {
   await runWithGuard(async () => {
     const token = tokenOrThrow();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       pushLog("Calling ClientStream in local-first mode...");
       await callLocalBackendStream("ClientStream", token, name.value, message.value, (line) => {
         pushLog(`ClientStream response: ${line}`);
@@ -187,7 +158,7 @@ async function runBidiStream(): Promise<void> {
   await runWithGuard(async () => {
     const token = tokenOrThrow();
 
-    if (mode.value === "local") {
+    if (RUNTIME_MODE === "local") {
       pushLog("Calling BidiStream in local-first mode...");
       await callLocalBackendStream("BidiStream", token, name.value, message.value, (line) => {
         pushLog(`BidiStream <- ${line}`);

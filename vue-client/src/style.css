@@ -39,6 +39,22 @@ select {
   padding: 24px;
 }
 
+.mode-ribbon {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(9, 120, 105, 0.5);
+  background: linear-gradient(135deg, #0baf9b, #0c6f8f);
+  color: #f3fffb;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
 .landing-page {
   min-height: 100vh;
   padding: 40px;

@@ -6,6 +6,10 @@ service DemoService {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc Login(LoginRequest) returns (LoginReply);
   rpc Logout(LogoutRequest) returns (LogoutReply);
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectReply);
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsReply);
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectReply);
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectReply);
   rpc SayHello(HelloRequest) returns (HelloReply);
   rpc ServerStream(HelloRequest) returns (stream HelloReply);
   rpc ClientStream(stream HelloRequest) returns (HelloReply);
@@ -38,6 +42,52 @@ message LoginReply {
 message LogoutRequest {}
 
 message LogoutReply {
+  bool ok = 1;
+}
+
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string owner_user_id = 4;
+  repeated string member_user_ids = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+  repeated string member_user_ids = 3;
+}
+
+message CreateProjectReply {
+  Project project = 1;
+}
+
+message ListProjectsRequest {}
+
+message ListProjectsReply {
+  repeated Project projects = 1;
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string owner_user_id = 4;
+  repeated string member_user_ids = 5;
+}
+
+message UpdateProjectReply {
+  Project project = 1;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+}
+
+message DeleteProjectReply {
   bool ok = 1;
 }
 

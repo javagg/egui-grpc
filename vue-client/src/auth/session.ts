@@ -16,7 +16,7 @@ const defaultSession: StoredSession = {
   token: "",
   currentUser: "",
   isSuperuser: false,
-  mode: "remote",
+  mode: "local",
   endpoint: "http://127.0.0.1:50051",
 };
 

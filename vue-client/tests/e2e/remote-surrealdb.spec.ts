@@ -44,7 +44,6 @@ test.describe("remote surrealdb", () => {
   test.setTimeout(180_000);
 
   async function loginRemote(page: Page): Promise<void> {
-    await page.getByTestId("auth-mode-select").selectOption("remote");
     await page.getByTestId("auth-endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
     await page.getByTestId("auth-username-input").fill(adminUsername);
     await page.getByTestId("auth-password-input").fill(adminPassword);
@@ -93,7 +92,6 @@ test.describe("remote surrealdb", () => {
     const password = "user-pass-123";
 
     await page.goto("/auth?next=/app/test");
-    await page.getByTestId("auth-mode-select").selectOption("remote");
     await page.getByTestId("auth-endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
     await page.getByTestId("auth-username-input").fill(username);
     await page.getByTestId("auth-password-input").fill(password);

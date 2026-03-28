@@ -1,12 +1,52 @@
 export type RpcAction = "Unary" | "ServerStream" | "ClientStream" | "BidiStream";
 
-interface WorkerRequest {
+export type ProjectWorkerAction =
+  | {
+    action: "create";
+    id: string;
+    name: string;
+    description: string;
+    owner_user_id: string;
+    member_user_ids: string[];
+  }
+  | {
+    action: "list";
+    user_id: string;
+  }
+  | {
+    action: "update";
+    user_id: string;
+    is_superuser: boolean;
+    id: string;
+    name: string;
+    description: string;
+    owner_user_id: string;
+    member_user_ids: string[];
+  }
+  | {
+    action: "delete";
+    user_id: string;
+    is_superuser: boolean;
+    id: string;
+  };
+
+interface RpcWorkerRequest {
   id: number;
+  kind: "rpc";
   action: RpcAction;
   token: string;
   name: string;
   message: string;
 }
+
+interface ProjectWorkerRequest {
+  id: number;
+  kind: "project";
+  token: string;
+  payloadJson: string;
+}
+
+type WorkerRequest = RpcWorkerRequest | ProjectWorkerRequest;
 
 interface WorkerStarted {
   id: number;
@@ -108,10 +148,33 @@ export async function callLocalBackendStream(
   const w = getWorker();
   const id = nextId++;
 
-  const req: WorkerRequest = { id, action, token, name, message };
+  const req: WorkerRequest = { id, kind: "rpc", action, token, name, message };
 
   return new Promise<string[]>((resolve, reject) => {
     pending.set(id, { lines: [], onLine, resolve, reject });
+    w.postMessage(req);
+  });
+}
+
+export async function callLocalProjectBackend(
+  token: string,
+  payload: ProjectWorkerAction,
+): Promise<string> {
+  const w = getWorker();
+  const id = nextId++;
+  const req: WorkerRequest = {
+    id,
+    kind: "project",
+    token,
+    payloadJson: JSON.stringify(payload),
+  };
+
+  return new Promise<string>((resolve, reject) => {
+    pending.set(id, {
+      lines: [],
+      resolve: (lines) => resolve(lines[0] ?? ""),
+      reject,
+    });
     w.postMessage(req);
   });
 }
