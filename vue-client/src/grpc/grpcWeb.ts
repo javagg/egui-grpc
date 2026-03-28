@@ -1,4 +1,20 @@
-import { decodeHelloReply, encodeHelloRequest, type HelloReply, type HelloRequest } from "./messages";
+import {
+  decodeHelloReply,
+  decodeLoginReply,
+  decodeLogoutReply,
+  decodeRegisterReply,
+  encodeHelloRequest,
+  encodeLoginRequest,
+  encodeLogoutRequest,
+  encodeRegisterRequest,
+  type HelloReply,
+  type HelloRequest,
+  type LoginReply,
+  type LoginRequest,
+  type LogoutReply,
+  type RegisterReply,
+  type RegisterRequest,
+} from "./messages";
 
 const SERVICE_PATH = "/demo.DemoService";
 
@@ -94,13 +110,14 @@ async function readGrpcWebFrames(
   return { messages, trailers };
 }
 
-async function grpcWebRequest(
+async function grpcWebRequest<T>(
   endpoint: string,
   method: string,
   requestFrames: Uint8Array[],
+  decodeMessage: (payload: Uint8Array) => T,
   token?: string,
   onMessage?: (payload: Uint8Array) => void,
-): Promise<HelloReply[]> {
+): Promise<T[]> {
   const url = joinUrl(endpoint, `${SERVICE_PATH}/${method}`);
   const body = concatBytes(requestFrames);
   const bodyBuffer = body.buffer.slice(
@@ -131,13 +148,43 @@ async function grpcWebRequest(
     throw new Error(`gRPC status ${grpcStatus}: ${decodeURIComponent(grpcMessage)}`);
   }
 
-  return messages.map((m) => decodeHelloReply(m));
+  return messages.map((m) => decodeMessage(m));
 }
 
 export async function sayHello(endpoint: string, req: HelloRequest, token?: string): Promise<HelloReply> {
-  const replies = await grpcWebRequest(endpoint, "SayHello", [frameMessage(encodeHelloRequest(req))], token);
+  const replies = await grpcWebRequest(endpoint, "SayHello", [frameMessage(encodeHelloRequest(req))], decodeHelloReply, token);
   if (replies.length === 0) {
     throw new Error("No reply from server");
+  }
+  return replies[0];
+}
+
+export async function login(endpoint: string, req: LoginRequest): Promise<LoginReply> {
+  const replies = await grpcWebRequest(endpoint, "Login", [frameMessage(encodeLoginRequest(req))], decodeLoginReply);
+  if (replies.length === 0) {
+    throw new Error("No login reply from server");
+  }
+  return replies[0];
+}
+
+export async function register(endpoint: string, req: RegisterRequest): Promise<RegisterReply> {
+  const replies = await grpcWebRequest(endpoint, "Register", [frameMessage(encodeRegisterRequest(req))], decodeRegisterReply);
+  if (replies.length === 0) {
+    throw new Error("No register reply from server");
+  }
+  return replies[0];
+}
+
+export async function logout(endpoint: string, token: string): Promise<LogoutReply> {
+  const replies = await grpcWebRequest(
+    endpoint,
+    "Logout",
+    [frameMessage(encodeLogoutRequest({}))],
+    decodeLogoutReply,
+    token,
+  );
+  if (replies.length === 0) {
+    throw new Error("No logout reply from server");
   }
   return replies[0];
 }
@@ -149,7 +196,7 @@ export async function serverStream(
   onReply?: (reply: HelloReply) => void,
 ): Promise<HelloReply[]> {
   const replies: HelloReply[] = [];
-  await grpcWebRequest(endpoint, "ServerStream", [frameMessage(encodeHelloRequest(req))], token, (payload) => {
+  await grpcWebRequest(endpoint, "ServerStream", [frameMessage(encodeHelloRequest(req))], decodeHelloReply, token, (payload) => {
     const msg = decodeHelloReply(payload);
     replies.push(msg);
     onReply?.(msg);
@@ -159,7 +206,7 @@ export async function serverStream(
 
 export async function clientStream(endpoint: string, reqs: HelloRequest[], token?: string): Promise<HelloReply> {
   const frames = reqs.map((req) => frameMessage(encodeHelloRequest(req)));
-  const replies = await grpcWebRequest(endpoint, "ClientStream", frames, token);
+  const replies = await grpcWebRequest(endpoint, "ClientStream", frames, decodeHelloReply, token);
   if (replies.length === 0) {
     throw new Error("No reply from server");
   }
@@ -174,7 +221,7 @@ export async function bidiStream(
 ): Promise<HelloReply[]> {
   const frames = reqs.map((req) => frameMessage(encodeHelloRequest(req)));
   const replies: HelloReply[] = [];
-  await grpcWebRequest(endpoint, "BidiStream", frames, token, (payload) => {
+  await grpcWebRequest(endpoint, "BidiStream", frames, decodeHelloReply, token, (payload) => {
     const msg = decodeHelloReply(payload);
     replies.push(msg);
     onReply?.(msg);

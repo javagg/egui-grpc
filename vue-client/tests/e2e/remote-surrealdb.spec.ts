@@ -2,11 +2,15 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 let serverProcess: ChildProcessWithoutNullStreams | null = null;
 const testServerPort = 50061;
-const testToken = "remote-e2e-token";
+const adminUsername = "admin";
+const adminPassword = "remote-admin-pass";
+function uniqueUsername(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
 
 function checkPortOpen(port: number, host = "127.0.0.1"): Promise<boolean> {
   return new Promise((resolve) => {
@@ -36,7 +40,17 @@ async function waitForPort(port: number, timeoutMs: number): Promise<void> {
 }
 
 test.describe("remote surrealdb", () => {
+  test.describe.configure({ mode: "serial" });
   test.setTimeout(180_000);
+
+  async function loginRemote(page: Page): Promise<void> {
+    await page.getByTestId("auth-mode-select").selectOption("remote");
+    await page.getByTestId("auth-endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
+    await page.getByTestId("auth-username-input").fill(adminUsername);
+    await page.getByTestId("auth-password-input").fill(adminPassword);
+    await page.getByTestId("auth-btn-login").click();
+    await expect(page.getByTestId("btn-unary")).toBeVisible();
+  }
 
   test.beforeAll(async ({}, testInfo) => {
     testInfo.setTimeout(180_000);
@@ -46,7 +60,8 @@ test.describe("remote surrealdb", () => {
       env: {
         ...process.env,
         GRPC_ADDR: `127.0.0.1:${testServerPort}`,
-        GRPC_AUTH_TOKEN: testToken,
+        GRPC_ADMIN_USERNAME: adminUsername,
+        GRPC_ADMIN_PASSWORD: adminPassword,
       },
       stdio: "pipe",
     });
@@ -63,9 +78,7 @@ test.describe("remote surrealdb", () => {
 
   test("remote unary can trigger surrealdb write/read roundtrip", async ({ page }) => {
     await page.goto("/");
-    await page.getByTestId("mode-select").selectOption("remote");
-    await page.getByTestId("endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
-    await page.getByTestId("token-input").fill(testToken);
+    await loginRemote(page);
     await page.getByTestId("name-input").fill("db-user");
     await page.getByTestId("message-input").fill("db-test:hello-surreal");
 
@@ -75,16 +88,29 @@ test.describe("remote surrealdb", () => {
     await expect(page.getByText(/value=db-user::hello-surreal/)).toBeVisible();
   });
 
-  test("remote unary is rejected when bearer token is missing", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("mode-select").selectOption("remote");
-    await page.getByTestId("endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
-    await page.getByTestId("token-input").fill("");
-    await page.getByTestId("name-input").fill("db-user");
-    await page.getByTestId("message-input").fill("hello-auth");
+  test("remote user can register then login and call unary", async ({ page }) => {
+    const username = uniqueUsername("user");
+    const password = "user-pass-123";
 
+    await page.goto("/");
+    await page.getByTestId("auth-mode-select").selectOption("remote");
+    await page.getByTestId("auth-endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
+    await page.getByTestId("auth-username-input").fill(username);
+    await page.getByTestId("auth-password-input").fill(password);
+
+    await page.getByTestId("auth-btn-register").click();
+    await expect(page.getByTestId("btn-unary")).toBeVisible();
+
+    await page.getByTestId("name-input").fill("new-user");
+    await page.getByTestId("message-input").fill("hello-after-register");
     await page.getByTestId("btn-unary").click();
 
-    await expect(page.getByText(/Error: Error: (gRPC status 16|No reply from server)/i)).toBeVisible();
+    await expect(page.getByText("Unary response: Unary: hello new-user, message=hello-after-register")).toBeVisible();
+  });
+
+  test("remote unary requires login first", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("auth-btn-login")).toBeVisible();
+    await expect(page.getByTestId("btn-unary")).toHaveCount(0);
   });
 });

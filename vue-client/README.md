@@ -11,23 +11,32 @@
 
 Default dev URL: `http://127.0.0.1:5173`
 
-## Remote gRPC-Web Token Auth
+## Remote gRPC-Web Login Auth
 
-- Server expects `Authorization: Bearer <token>`
-- Default server token is `dev-token` (override via `GRPC_AUTH_TOKEN`)
-- In UI, set `Bearer Token` to match server token
+- Server boots with a default superuser: `admin` / `admin123456`
+- Override with env vars `GRPC_ADMIN_USERNAME` and `GRPC_ADMIN_PASSWORD`
+- Login flow:
+   - `Register` RPC does not require bearer token
+   - `Login` RPC does not require bearer token
+   - Register success creates a normal user account
+   - Login success returns a token
+   - All business RPCs and `Logout` require `Authorization: Bearer <token>`
 
 ## Local-First Token Auth
 
-- Worker also checks bearer token in local-first mode
+- Local-first mode also uses login in UI before running actions
+- Default local-first admin creds: `admin` / `admin123456`
 - Default local-first token is `dev-token`
-- Override with Vite env var `VITE_LOCAL_AUTH_TOKEN`
-- UI uses the same `Bearer Token` field for remote and local-first modes
+- Override via Vite env vars:
+   - `VITE_LOCAL_ADMIN_USERNAME`
+   - `VITE_LOCAL_ADMIN_PASSWORD`
+   - `VITE_LOCAL_AUTH_TOKEN`
 
 ## Local First Mode (Worker + Rust WASM)
 
 1. Install `wasm-pack` if needed:
    - `cargo install wasm-pack`
+   - Windows: if build reports `failed to find tool "clang"`, install LLVM and add `C:\Program Files\LLVM\bin` to PATH
 2. Generate worker wasm package:
    - `npm run build:local-backend-wasm`
 3. Start local-first dev mode:

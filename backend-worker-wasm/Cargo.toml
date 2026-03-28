@@ -12,3 +12,6 @@ backend-core = { path = "../backend-core" }
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

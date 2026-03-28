@@ -31,7 +31,13 @@ cargo run -p server
 
 默认监听：`http://127.0.0.1:50051`
 
-默认认证 token：`dev-token`（可通过环境变量 `GRPC_AUTH_TOKEN` 修改）。
+服务端启动时会自动初始化超级用户：
+
+- 用户名：`admin`（可通过 `GRPC_ADMIN_USERNAME` 覆盖）
+- 密码：`admin123456`（可通过 `GRPC_ADMIN_PASSWORD` 覆盖）
+
+客户端需要先调用 `Login` 获取 Bearer Token，之后才能访问其他业务 gRPC 接口。
+其中 `Register` 与 `Login` 接口本身不做 token 鉴权；`Logout` 与业务接口需要有效 token。
 
 ## 启动 Web 客户端
 
@@ -105,13 +111,15 @@ npm run dev:local
 ## 在页面中测试
 
 1. 保持 `Server endpoint` 为 `http://127.0.0.1:50051`
-2. 将 `Bearer Token` 设为与当前模式的服务端/Worker 一致（默认 `dev-token`）
-3. 依次点击按钮：
+2. 新用户可先输入账号密码并点击 `Register` 完成注册
+3. 输入账号密码并点击 `Login`（默认超管 `admin` / `admin123456`）
+4. 登录成功后依次点击按钮：
    - `Unary`
    - `Server Stream`
    - `Client Stream`
    - `Bidirectional Stream`
-4. 在 `Logs` 区域观察每种模式的返回结果
+5. 点击 `Logout` 可让当前 token 失效
+6. 在 `Logs` 区域观察每种模式的返回结果
 
 ## 额外说明
 

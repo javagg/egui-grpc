@@ -1,4 +1,5 @@
 use std::pin::Pin;
+use std::{collections::HashMap, sync::Arc};
 
 use backend_core::{
     bidi_stream as core_bidi_stream, client_stream as core_client_stream,
@@ -9,26 +10,67 @@ use backend_core::{
 use futures_core::Stream;
 use proto::demo::{
     demo_service_server::{DemoService, DemoServiceServer},
-    HelloReply, HelloRequest,
+    HelloReply, HelloRequest, LoginReply, LoginRequest, LogoutReply, LogoutRequest,
+    RegisterReply, RegisterRequest,
 };
+use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tonic::{transport::Server, Request, Response, Status};
 use tower_http::cors::CorsLayer;
+use uuid::Uuid;
+
+#[derive(Clone)]
+struct UserAccount {
+    username: String,
+    password: String,
+    is_superuser: bool,
+}
 
 struct DemoGrpcService {
-    expected_token: String,
+    users: Arc<RwLock<HashMap<String, UserAccount>>>,
+    sessions: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl DemoGrpcService {
-    fn authorize<T>(&self, request: &Request<T>) -> Result<(), Status> {
+    fn new(admin_username: String, admin_password: String) -> Self {
+        let mut users = HashMap::new();
+        users.insert(
+            admin_username.clone(),
+            UserAccount {
+                username: admin_username,
+                password: admin_password,
+                is_superuser: true,
+            },
+        );
+
+        Self {
+            users: Arc::new(RwLock::new(users)),
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    fn extract_bearer_token<T>(request: &Request<T>) -> Result<String, Status> {
         let auth = request
             .metadata()
             .get("authorization")
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| Status::unauthenticated("missing authorization header"))?;
 
-        let expected = format!("Bearer {}", self.expected_token);
-        if auth != expected {
+        let token = auth
+            .strip_prefix("Bearer ")
+            .ok_or_else(|| Status::unauthenticated("invalid authorization header format"))?
+            .trim();
+
+        if token.is_empty() {
+            return Err(Status::unauthenticated("empty bearer token"));
+        }
+
+        Ok(token.to_string())
+    }
+
+    async fn authorize_token(&self, token: &str) -> Result<(), Status> {
+        let sessions = self.sessions.read().await;
+        if !sessions.contains_key(token) {
             return Err(Status::unauthenticated("invalid bearer token"));
         }
 
@@ -40,11 +82,97 @@ type ReplyStream = Pin<Box<dyn Stream<Item = Result<HelloReply, Status>> + Send 
 
 #[tonic::async_trait]
 impl DemoService for DemoGrpcService {
+    async fn register(
+        &self,
+        request: Request<RegisterRequest>,
+    ) -> Result<Response<RegisterReply>, Status> {
+        let RegisterRequest { username, password } = request.into_inner();
+        if username.trim().is_empty() || password.is_empty() {
+            return Err(Status::invalid_argument("username/password must not be empty"));
+        }
+
+        let mut users = self.users.write().await;
+        if users.contains_key(&username) {
+            return Err(Status::already_exists("username already exists"));
+        }
+
+        users.insert(
+            username.clone(),
+            UserAccount {
+                username: username.clone(),
+                password,
+                is_superuser: false,
+            },
+        );
+
+        let token = Uuid::new_v4().simple().to_string();
+        self.sessions
+            .write()
+            .await
+            .insert(token.clone(), username.clone());
+
+        Ok(Response::new(RegisterReply {
+            ok: true,
+            username,
+            token,
+            is_superuser: false,
+        }))
+    }
+
+    async fn login(
+        &self,
+        request: Request<LoginRequest>,
+    ) -> Result<Response<LoginReply>, Status> {
+        let LoginRequest { username, password } = request.into_inner();
+        if username.trim().is_empty() || password.is_empty() {
+            return Err(Status::invalid_argument("username/password must not be empty"));
+        }
+
+        let user = {
+            let users = self.users.read().await;
+            users
+                .get(&username)
+                .cloned()
+                .ok_or_else(|| Status::unauthenticated("invalid username or password"))?
+        };
+
+        if user.password != password {
+            return Err(Status::unauthenticated("invalid username or password"));
+        }
+
+        let token = Uuid::new_v4().simple().to_string();
+        self.sessions
+            .write()
+            .await
+            .insert(token.clone(), user.username.clone());
+
+        Ok(Response::new(LoginReply {
+            token,
+            username: user.username,
+            is_superuser: user.is_superuser,
+        }))
+    }
+
+    async fn logout(
+        &self,
+        request: Request<LogoutRequest>,
+    ) -> Result<Response<LogoutReply>, Status> {
+        let token = Self::extract_bearer_token(&request)?;
+        let removed = self.sessions.write().await.remove(&token).is_some();
+
+        if !removed {
+            return Err(Status::unauthenticated("invalid bearer token"));
+        }
+
+        Ok(Response::new(LogoutReply { ok: true }))
+    }
+
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        self.authorize(&request)?;
+        let token = Self::extract_bearer_token(&request)?;
+        self.authorize_token(&token).await?;
         let HelloRequest { name, message } = request.into_inner();
 
         if let Some(payload) = message.strip_prefix("db-test:") {
@@ -83,7 +211,8 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerStreamStream>, Status> {
-        self.authorize(&request)?;
+        let token = Self::extract_bearer_token(&request)?;
+        self.authorize_token(&token).await?;
         let req = request.into_inner();
         let messages = core_server_stream(DemoInput {
             name: req.name,
@@ -104,7 +233,8 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        self.authorize(&request)?;
+        let token = Self::extract_bearer_token(&request)?;
+        self.authorize_token(&token).await?;
         let mut stream = request.into_inner();
         let mut count = 0usize;
         let mut names = Vec::new();
@@ -133,7 +263,8 @@ impl DemoService for DemoGrpcService {
         &self,
         request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<Self::BidiStreamStream>, Status> {
-        self.authorize(&request)?;
+        let token = Self::extract_bearer_token(&request)?;
+        self.authorize_token(&token).await?;
         let mut input = request.into_inner();
 
         let output = async_stream::try_stream! {
@@ -157,13 +288,21 @@ impl DemoService for DemoGrpcService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let expected_token = std::env::var("GRPC_AUTH_TOKEN").unwrap_or_else(|_| "dev-token".to_string());
+    let admin_username = std::env::var("GRPC_ADMIN_USERNAME").unwrap_or_else(|_| "admin".to_string());
+    let admin_password =
+        std::env::var("GRPC_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123456".to_string());
     let addr = std::env::var("GRPC_ADDR")
         .unwrap_or_else(|_| "0.0.0.0:50051".to_string())
         .parse()?;
-    let service = DemoServiceServer::new(DemoGrpcService { expected_token });
+    let service = DemoServiceServer::new(DemoGrpcService::new(
+        admin_username.clone(),
+        admin_password.clone(),
+    ));
 
     println!("gRPC server listening on http://{addr}");
+    println!(
+        "initialized superuser: username={admin_username}, password={admin_password}"
+    );
 
     Server::builder()
         .accept_http1(true)

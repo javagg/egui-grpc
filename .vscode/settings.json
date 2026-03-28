@@ -1,0 +1,13 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "npm run build": true,
+        "npm run test:e2e": true,
+        "where.exe": true,
+        "Get-Command": true,
+        "Push-Location": true,
+        "Pop-Location": true,
+        "cargo run": true,
+        "npm --prefix vue-client": true,
+        "npm run dev": true
+    }
+}
