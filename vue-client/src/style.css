@@ -425,6 +425,147 @@ select:focus {
   color: #15557a;
 }
 
+.recent-projects-panel {
+  grid-column: span 2;
+}
+
+.recent-projects {
+  margin: 12px 0 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.recent-projects li {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(246, 249, 252, 0.9);
+  border: 1px solid rgba(120, 141, 168, 0.18);
+}
+
+.projects-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.projects-toolbar {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.project-count {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(20, 114, 176, 0.12);
+  color: #15557a;
+}
+
+.view-switch {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 141, 168, 0.3);
+  overflow: hidden;
+}
+
+.view-button {
+  border-radius: 0;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d375c;
+}
+
+.view-button.active {
+  background: linear-gradient(135deg, #1f5ed8, #1488c8 62%, #0baf9b 100%);
+  color: #fff;
+}
+
+.project-form {
+  margin-top: 18px;
+}
+
+.empty-state {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(121, 142, 170, 0.5);
+  color: #4a5f7f;
+}
+
+.project-card-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.project-list-table {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.project-card,
+.project-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 141, 168, 0.2);
+  background: rgba(246, 249, 252, 0.95);
+}
+
+.project-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.project-main h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.project-description {
+  margin: 6px 0 0;
+  color: #4c5d77;
+}
+
+.project-meta {
+  display: grid;
+  gap: 4px;
+  color: #4c5d77;
+  font-size: 0.9rem;
+}
+
+.project-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.project-actions button {
+  padding: 8px 12px;
+}
+
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(11, 175, 155, 0.15);
+  color: #0a6d63;
+  font-size: 0.85rem;
+}
+
 .info-grid,
 .settings-grid {
   display: grid;
@@ -486,7 +627,7 @@ select:focus {
 
   .sidebar-nav {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -515,6 +656,10 @@ select:focus {
   .sidebar,
   .sidebar-nav {
     grid-template-columns: 1fr;
+  }
+
+  .recent-projects-panel {
+    grid-column: auto;
   }
 
   .hero-summary,

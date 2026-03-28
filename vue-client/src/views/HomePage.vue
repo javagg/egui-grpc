@@ -35,6 +35,25 @@
     </div>
 
     <div class="info-grid">
+      <article class="panel metric-panel">
+        <p>参与项目数</p>
+        <strong data-testid="home-project-count">{{ currentUserProjectCount }}</strong>
+        <span>按成员身份统计当前用户参与的项目</span>
+      </article>
+
+      <article class="panel recent-projects-panel">
+        <h3>最近项目</h3>
+        <p v-if="currentUserRecentProjects.length === 0" class="hint">当前用户还没有项目记录。</p>
+        <ul v-else class="recent-projects" data-testid="home-recent-projects">
+          <li v-for="project in currentUserRecentProjects" :key="project.id">
+            <strong>{{ project.name }}</strong>
+            <span>{{ project.description || "(无描述)" }}</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="info-grid">
       <article class="panel">
         <h3>后续迁移方向</h3>
         <ul class="panel-list">
@@ -57,4 +76,5 @@
 
 <script setup lang="ts">
 import { authSession } from "../auth/session";
+import { currentUserProjectCount, currentUserRecentProjects } from "../projects/projectStore";
 </script>

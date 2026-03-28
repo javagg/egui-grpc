@@ -5,6 +5,7 @@ import AuthPage from "../views/AuthPage.vue";
 import HomePage from "../views/HomePage.vue";
 import LandingPage from "../views/LandingPage.vue";
 import MainPage from "../views/MainPage.vue";
+import ProjectPage from "../views/ProjectPage.vue";
 import SettingsPage from "../views/SettingsPage.vue";
 
 const router = createRouter({
@@ -34,6 +35,12 @@ const router = createRouter({
           name: "home",
           component: HomePage,
           meta: { requiresAuth: true, title: "首页" },
+        },
+        {
+          path: "projects",
+          name: "project",
+          component: ProjectPage,
+          meta: { requiresAuth: true, title: "仿真项目" },
         },
         {
           path: "test",

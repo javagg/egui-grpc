@@ -9,6 +9,7 @@
 
       <nav class="sidebar-nav">
         <RouterLink class="nav-link" to="/app/home">首页</RouterLink>
+        <RouterLink class="nav-link" to="/app/projects">仿真项目</RouterLink>
         <RouterLink class="nav-link" to="/app/test">测试页</RouterLink>
         <RouterLink class="nav-link" to="/app/settings">设置</RouterLink>
       </nav>
