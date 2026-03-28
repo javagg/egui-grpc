@@ -1,9 +1,10 @@
 <template>
-  <main class="page">
-    <section class="card">
-      <h1>Vue3 + TypeScript gRPC-Web Demo</h1>
+  <section class="content-stack">
+    <article class="panel panel-spacious">
+      <p class="eyebrow">Test Workspace</p>
+      <h3>联调测试页</h3>
       <p class="hint">
-        当前用户：{{ authSession.currentUser }}{{ authSession.isSuperuser ? " (superuser)" : "" }}
+        当前主页面的 gRPC 调试能力已迁移到这里，后续会逐步拆分到首页、项目页与结果页。
       </p>
 
       <div class="form-row">
@@ -22,10 +23,6 @@
           :disabled="mode === 'local'"
           data-testid="endpoint-input"
         />
-      </div>
-
-      <div class="actions">
-        <button :disabled="busy" @click="runLogout" data-testid="btn-logout">Logout</button>
       </div>
 
       <div class="form-row">
@@ -51,15 +48,15 @@
       <div class="logs" data-testid="logs-panel">
         <div v-for="(line, idx) in logs" :key="idx" class="log-line">{{ line }}</div>
       </div>
-    </section>
-  </main>
+    </article>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { authSession, clearAuthSession, updateAuthConfig, type AppMode } from "../auth/session";
-import { bidiStream, clientStream, logout, sayHello, serverStream } from "../grpc/grpcWeb";
+import { bidiStream, clientStream, sayHello, serverStream } from "../grpc/grpcWeb";
 import { callLocalBackendStream } from "../local/workerClient";
 
 const router = useRouter();
@@ -76,7 +73,7 @@ watch(mode, (next, prev) => {
   if (next !== prev) {
     clearAuthSession({ preserveConfig: true });
     pushLog("Mode changed. Please login again.");
-    void router.replace("/auth");
+    void router.replace("/auth?next=/app/test");
   }
 });
 
@@ -114,14 +111,10 @@ async function runLogout(): Promise<void> {
   await runWithGuard(async () => {
     const token = tokenOrThrow();
 
-    if (mode.value === "remote") {
-      await logout(endpoint.value, token);
-    }
-
     const user = authSession.currentUser;
     clearAuthSession({ preserveConfig: true });
     pushLog(`Logged out ${user}`);
-    await router.replace("/auth");
+    await router.replace("/auth?next=/app/test");
   });
 }
 

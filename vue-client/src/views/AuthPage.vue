@@ -1,8 +1,9 @@
 <template>
-  <main class="page">
+  <main class="page auth-page">
     <section class="card auth-card">
-      <h1>登录 / 注册</h1>
-      <p class="hint">请先完成登录，登录成功后自动进入主页面。</p>
+      <p class="eyebrow">Console Access</p>
+      <h1>登录控制台</h1>
+      <p class="hint">完成身份验证后进入电磁仿真 SaaS 主页面。</p>
 
       <div class="form-row">
         <label>Mode</label>
@@ -44,13 +45,14 @@
 
       <div class="status" data-testid="auth-status">{{ statusText }}</div>
       <p v-if="mode === 'local'" class="hint">Local 模式下不支持动态注册，请使用配置好的管理员账号。</p>
+      <RouterLink class="ghost-link" to="/">返回产品页</RouterLink>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import { authSession, setAuthSession, updateAuthConfig, type AppMode } from "../auth/session";
 import { login, register } from "../grpc/grpcWeb";
 
@@ -78,7 +80,7 @@ watch(endpoint, (value) => {
 
 const nextPath = computed(() => {
   const raw = route.query.next;
-  return typeof raw === "string" && raw.startsWith("/") ? raw : "/";
+  return typeof raw === "string" && raw.startsWith("/") ? raw : "/app/home";
 });
 
 async function runWithGuard(task: () => Promise<void>): Promise<void> {

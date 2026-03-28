@@ -13,7 +13,7 @@ async function loginLocal(page: Page): Promise<void> {
 }
 
 test("local-first unary runs without server", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app/test");
   await loginLocal(page);
   await page.getByTestId("name-input").fill("alice");
   await page.getByTestId("message-input").fill("from unary");
@@ -25,7 +25,7 @@ test("local-first unary runs without server", async ({ page }) => {
 });
 
 test("local-first login is rejected when password is invalid", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/auth");
   await page.getByTestId("auth-mode-select").selectOption("local");
   await page.getByTestId("auth-username-input").fill("admin");
   await page.getByTestId("auth-password-input").fill("wrong-password");
@@ -36,7 +36,7 @@ test("local-first login is rejected when password is invalid", async ({ page }) 
 });
 
 test("local-first unary can trigger surrealdb indexeddb roundtrip", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app/test");
   await loginLocal(page);
   await page.getByTestId("name-input").fill("local-db-user");
   await page.getByTestId("message-input").fill("db-test:hello-indexeddb");
@@ -48,7 +48,7 @@ test("local-first unary can trigger surrealdb indexeddb roundtrip", async ({ pag
 });
 
 test("local-first surrealdb data survives page reload via indexeddb", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app/test");
   await loginLocal(page);
   await page.getByTestId("name-input").fill("persist-user");
   await page.getByTestId("message-input").fill("db-test:persist-value");
@@ -67,7 +67,7 @@ test("local-first surrealdb data survives page reload via indexeddb", async ({ p
 });
 
 test("local-first server stream emits 5 chunks then completes", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app/test");
   await loginLocal(page);
   await page.getByTestId("name-input").fill("bob");
   await page.getByTestId("message-input").fill("streaming");
@@ -81,7 +81,7 @@ test("local-first server stream emits 5 chunks then completes", async ({ page })
 });
 
 test("local-first bidi stream emits 3 messages then completes", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app/test");
   await loginLocal(page);
   await page.getByTestId("name-input").fill("charlie");
   await page.getByTestId("message-input").fill("ping");

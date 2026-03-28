@@ -77,7 +77,7 @@ test.describe("remote surrealdb", () => {
   });
 
   test("remote unary can trigger surrealdb write/read roundtrip", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app/test");
     await loginRemote(page);
     await page.getByTestId("name-input").fill("db-user");
     await page.getByTestId("message-input").fill("db-test:hello-surreal");
@@ -92,7 +92,7 @@ test.describe("remote surrealdb", () => {
     const username = uniqueUsername("user");
     const password = "user-pass-123";
 
-    await page.goto("/");
+    await page.goto("/auth?next=/app/test");
     await page.getByTestId("auth-mode-select").selectOption("remote");
     await page.getByTestId("auth-endpoint-input").fill(`http://127.0.0.1:${testServerPort}`);
     await page.getByTestId("auth-username-input").fill(username);
@@ -109,7 +109,7 @@ test.describe("remote surrealdb", () => {
   });
 
   test("remote unary requires login first", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/app/test");
     await expect(page.getByTestId("auth-btn-login")).toBeVisible();
     await expect(page.getByTestId("btn-unary")).toHaveCount(0);
   });
