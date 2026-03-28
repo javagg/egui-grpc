@@ -81,6 +81,7 @@
           </div>
 
           <div class="project-actions">
+            <button type="button" data-testid="project-open-btn" @click="openStudio(project)">打开</button>
             <button type="button" @click="startEdit(project)">编辑</button>
             <button type="button" @click="removeProject(project.id)">删除</button>
           </div>
@@ -92,6 +93,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { authSession } from "../auth/session";
 import {
   allProjects,
@@ -115,6 +117,7 @@ interface ProjectForm {
 const viewMode = ref<ViewMode>("card");
 const editingId = ref<string>("");
 const statusText = ref("填写项目信息后点击创建。");
+const router = useRouter();
 const form = ref<ProjectForm>({
   name: "",
   description: "",
@@ -183,6 +186,13 @@ function startEdit(project: Project): void {
     membersRaw: project.memberUserIds.join(","),
   };
   statusText.value = `正在编辑：${project.name}`;
+}
+
+function openStudio(project: Project): void {
+  void router.push({
+    name: "studio",
+    params: { projectId: project.id },
+  });
 }
 
 async function removeProject(projectId: string): Promise<void> {

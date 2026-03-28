@@ -1,7 +1,8 @@
 use backend_core::{
-    bidi_stream, client_stream, create_project, delete_project, list_projects_for_user,
-    server_stream, surrealdb_read_test, surrealdb_roundtrip_test, unary, update_project,
-    CreateProjectInput, DemoInput, UpdateProjectInput,
+    bidi_stream, client_stream, create_project_persisted, delete_project_persisted,
+    list_projects_for_user_persisted, server_stream, surrealdb_read_test,
+    surrealdb_roundtrip_test, unary, update_project_persisted, CreateProjectInput, DemoInput,
+    UpdateProjectInput,
 };
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
@@ -139,13 +140,14 @@ pub async fn run_project_action_async(payload_json: &str) -> Result<JsValue, JsV
             owner_user_id,
             member_user_ids,
         } => {
-            let project = create_project(CreateProjectInput {
+            let project = create_project_persisted(CreateProjectInput {
                 id,
                 name,
                 description,
                 owner_user_id,
                 member_user_ids,
             })
+            .await
             .map_err(|e| JsValue::from_str(&e))?;
 
             ProjectActionReply {
@@ -156,7 +158,9 @@ pub async fn run_project_action_async(payload_json: &str) -> Result<JsValue, JsV
         }
         ProjectAction::List { user_id } => ProjectActionReply {
             ok: true,
-            projects: list_projects_for_user(&user_id),
+            projects: list_projects_for_user_persisted(&user_id)
+                .await
+                .map_err(|e| JsValue::from_str(&e))?,
             project: None,
         },
         ProjectAction::Update {
@@ -168,7 +172,7 @@ pub async fn run_project_action_async(payload_json: &str) -> Result<JsValue, JsV
             owner_user_id,
             member_user_ids,
         } => {
-            let project = update_project(
+            let project = update_project_persisted(
                 &user_id,
                 is_superuser,
                 UpdateProjectInput {
@@ -179,6 +183,7 @@ pub async fn run_project_action_async(payload_json: &str) -> Result<JsValue, JsV
                     member_user_ids,
                 },
             )
+            .await
             .map_err(|e| JsValue::from_str(&e))?;
 
             ProjectActionReply {
@@ -192,7 +197,9 @@ pub async fn run_project_action_async(payload_json: &str) -> Result<JsValue, JsV
             is_superuser,
             id,
         } => {
-            delete_project(&user_id, is_superuser, &id).map_err(|e| JsValue::from_str(&e))?;
+            delete_project_persisted(&user_id, is_superuser, &id)
+                .await
+                .map_err(|e| JsValue::from_str(&e))?;
             ProjectActionReply {
                 ok: true,
                 projects: Vec::new(),

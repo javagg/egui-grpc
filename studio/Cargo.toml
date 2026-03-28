@@ -1,0 +1,19 @@
+[package]
+name = "studio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "studio"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+egui = "0.31"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlCanvasElement", "Window"] }

@@ -46,3 +46,23 @@ test("local-first project CRUD and home summary", async ({ page }) => {
   await page.goto("/app/home");
   await expect(page.getByTestId("home-project-count")).toContainText(/[0-9]+/);
 });
+
+test("local-first created project persists after reload", async ({ page }) => {
+  await page.goto("/app/projects");
+  await loginLocal(page);
+
+  const name = uniq("local-project-persist");
+
+  await page.getByTestId("project-name-input").fill(name);
+  await page.getByTestId("project-description-input").fill("persist after reload");
+  await page.getByTestId("project-owner-input").fill("admin");
+  await page.getByTestId("project-members-input").fill("admin,alice");
+  await page.getByTestId("project-submit-btn").click();
+
+  await expect(page.getByText(`已创建项目：${name}`)).toBeVisible();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+
+  await page.reload();
+  await loginLocal(page);
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+});

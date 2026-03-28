@@ -119,6 +119,27 @@ fn normalize_members(owner_user_id: &str, members: &[String]) -> Vec<String> {
     normalized
 }
 
+#[cfg(target_arch = "wasm32")]
+fn normalize_project_record_id(raw: &str) -> String {
+    let value = raw
+        .strip_prefix("projects:")
+        .or_else(|| raw.strip_prefix("projects:"))
+        .unwrap_or(raw)
+        .trim_matches('`')
+        .trim_matches('⟨')
+        .trim_matches('⟩')
+        .trim_matches('"');
+
+    value.to_string()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn normalize_project_record_ids(items: &mut [ProjectRecord]) {
+    for item in items {
+        item.id = normalize_project_record_id(&item.id);
+    }
+}
+
 pub fn list_projects_for_user(user_id: &str) -> Vec<ProjectRecord> {
     let target = normalize_user_id(user_id);
     if target.is_empty() {
@@ -248,6 +269,260 @@ pub fn delete_project(
         projects.remove(project_id);
         Ok(())
     })
+}
+
+pub async fn list_projects_for_user_persisted(user_id: &str) -> Result<Vec<ProjectRecord>, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return Ok(list_projects_for_user(user_id));
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use surrealdb::{engine::local::IndxDb, Surreal};
+
+        let target = normalize_user_id(user_id);
+        if target.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let db = Surreal::new::<IndxDb>("egui_grpc_local_db")
+            .await
+            .map_err(|e| format!("create db failed: {e}"))?;
+
+        db.use_ns("demo_ns")
+            .use_db("demo_db")
+            .await
+            .map_err(|e| format!("select ns/db failed: {e}"))?;
+
+        let mut result = db
+            .query(
+                "SELECT type::string(id) AS id, name, description, owner_user_id, member_user_ids, created_at, updated_at FROM projects",
+            )
+            .await
+            .map_err(|e| format!("list projects failed: {e}"))?;
+        let mut list: Vec<ProjectRecord> = result
+            .take(0)
+            .map_err(|e| format!("decode project list failed: {e}"))?;
+        normalize_project_record_ids(&mut list);
+
+        list.retain(|item| {
+            item.owner_user_id == target || item.member_user_ids.iter().any(|member| member == &target)
+        });
+        list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+
+        Ok(list)
+    }
+}
+
+pub async fn create_project_persisted(input: CreateProjectInput) -> Result<ProjectRecord, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return create_project(input);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use surrealdb::{engine::local::IndxDb, Surreal};
+
+        let owner_user_id = normalize_user_id(&input.owner_user_id);
+        let name = input.name.trim().to_string();
+        let project_id = input.id.trim().to_string();
+
+        if project_id.is_empty() {
+            return Err("project id must not be empty".to_string());
+        }
+
+        if owner_user_id.is_empty() {
+            return Err("owner user id must not be empty".to_string());
+        }
+
+        if name.is_empty() {
+            return Err("project name must not be empty".to_string());
+        }
+
+        let db = Surreal::new::<IndxDb>("egui_grpc_local_db")
+            .await
+            .map_err(|e| format!("create db failed: {e}"))?;
+
+        db.use_ns("demo_ns")
+            .use_db("demo_db")
+            .await
+            .map_err(|e| format!("select ns/db failed: {e}"))?;
+
+        let mut existing_query = db
+            .query(
+                "SELECT type::string(id) AS id, name, description, owner_user_id, member_user_ids, created_at, updated_at FROM projects WHERE id = type::thing('projects', $id) LIMIT 1",
+            )
+            .bind(("id", project_id.clone()))
+            .await
+            .map_err(|e| format!("check project existence failed: {e}"))?;
+        let existing: Vec<ProjectRecord> = existing_query
+            .take(0)
+            .map_err(|e| format!("decode project existence failed: {e}"))?;
+
+        if !existing.is_empty() {
+            return Err("project id already exists".to_string());
+        }
+
+        let created_at = now_unix_ms_string();
+        let project = ProjectRecord {
+            id: project_id,
+            name,
+            description: input.description.trim().to_string(),
+            owner_user_id: owner_user_id.clone(),
+            member_user_ids: normalize_members(&owner_user_id, &input.member_user_ids),
+            created_at: created_at.clone(),
+            updated_at: created_at,
+        };
+
+        db.query("CREATE type::thing('projects', $id) CONTENT $project RETURN NONE")
+            .bind(("id", project.id.clone()))
+            .bind(("project", project.clone()))
+            .await
+            .map_err(|e| format!("create project failed: {e}"))?;
+
+        Ok(project)
+    }
+}
+
+pub async fn update_project_persisted(
+    requester_user_id: &str,
+    requester_is_superuser: bool,
+    input: UpdateProjectInput,
+) -> Result<ProjectRecord, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return update_project(requester_user_id, requester_is_superuser, input);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use surrealdb::{engine::local::IndxDb, Surreal};
+
+        let requester = normalize_user_id(requester_user_id);
+        if requester.is_empty() {
+            return Err("request user id must not be empty".to_string());
+        }
+
+        let project_id = input.id.trim().to_string();
+        if project_id.is_empty() {
+            return Err("project id must not be empty".to_string());
+        }
+
+        let owner_user_id = normalize_user_id(&input.owner_user_id);
+        let name = input.name.trim().to_string();
+        if owner_user_id.is_empty() {
+            return Err("owner user id must not be empty".to_string());
+        }
+
+        if name.is_empty() {
+            return Err("project name must not be empty".to_string());
+        }
+
+        let db = Surreal::new::<IndxDb>("egui_grpc_local_db")
+            .await
+            .map_err(|e| format!("create db failed: {e}"))?;
+
+        db.use_ns("demo_ns")
+            .use_db("demo_db")
+            .await
+            .map_err(|e| format!("select ns/db failed: {e}"))?;
+
+        let mut existing_query = db
+            .query(
+                "SELECT type::string(id) AS id, name, description, owner_user_id, member_user_ids, created_at, updated_at FROM projects WHERE id = type::thing('projects', $id) LIMIT 1",
+            )
+            .bind(("id", project_id.clone()))
+            .await
+            .map_err(|e| format!("read project failed: {e}"))?;
+        let mut existing: Vec<ProjectRecord> = existing_query
+            .take(0)
+            .map_err(|e| format!("decode project failed: {e}"))?;
+        normalize_project_record_ids(&mut existing);
+        let mut project = existing
+            .pop()
+            .ok_or_else(|| "project not found".to_string())?;
+
+        if !requester_is_superuser && project.owner_user_id != requester {
+            return Err("permission denied".to_string());
+        }
+
+        project.name = name;
+        project.description = input.description.trim().to_string();
+        project.owner_user_id = owner_user_id.clone();
+        project.member_user_ids = normalize_members(&owner_user_id, &input.member_user_ids);
+        project.updated_at = now_unix_ms_string();
+
+        db.query("UPDATE type::thing('projects', $id) CONTENT $project RETURN NONE")
+            .bind(("id", project_id.clone()))
+            .bind(("project", project.clone()))
+            .await
+            .map_err(|e| format!("update project failed: {e}"))?;
+
+        Ok(project)
+    }
+}
+
+pub async fn delete_project_persisted(
+    requester_user_id: &str,
+    requester_is_superuser: bool,
+    project_id: &str,
+) -> Result<(), String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        return delete_project(requester_user_id, requester_is_superuser, project_id);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use surrealdb::{engine::local::IndxDb, Surreal};
+
+        let requester = normalize_user_id(requester_user_id);
+        if requester.is_empty() {
+            return Err("request user id must not be empty".to_string());
+        }
+
+        let target_project_id = project_id.trim().to_string();
+        if target_project_id.is_empty() {
+            return Err("project id must not be empty".to_string());
+        }
+
+        let db = Surreal::new::<IndxDb>("egui_grpc_local_db")
+            .await
+            .map_err(|e| format!("create db failed: {e}"))?;
+
+        db.use_ns("demo_ns")
+            .use_db("demo_db")
+            .await
+            .map_err(|e| format!("select ns/db failed: {e}"))?;
+
+        let mut existing_query = db
+            .query(
+                "SELECT type::string(id) AS id, name, description, owner_user_id, member_user_ids, created_at, updated_at FROM projects WHERE id = type::thing('projects', $id) LIMIT 1",
+            )
+            .bind(("id", target_project_id.clone()))
+            .await
+            .map_err(|e| format!("read project failed: {e}"))?;
+        let mut existing: Vec<ProjectRecord> = existing_query
+            .take(0)
+            .map_err(|e| format!("decode project failed: {e}"))?;
+        normalize_project_record_ids(&mut existing);
+        let existing = existing
+            .pop()
+            .ok_or_else(|| "project not found".to_string())?;
+
+        if !requester_is_superuser && existing.owner_user_id != requester {
+            return Err("permission denied".to_string());
+        }
+
+        db.query("DELETE type::thing('projects', $id) RETURN NONE")
+            .bind(("id", target_project_id.clone()))
+            .await
+            .map_err(|e| format!("delete project failed: {e}"))?;
+
+        Ok(())
+    }
 }
 
 pub fn unary(input: DemoInput) -> String {

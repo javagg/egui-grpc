@@ -7,6 +7,7 @@ import LandingPage from "../views/LandingPage.vue";
 import MainPage from "../views/MainPage.vue";
 import ProjectPage from "../views/ProjectPage.vue";
 import SettingsPage from "../views/SettingsPage.vue";
+import StudioPage from "../views/StudioPage.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +21,12 @@ const router = createRouter({
       path: "/auth",
       name: "auth",
       component: AuthPage,
+    },
+    {
+      path: "/studio/:projectId",
+      name: "studio",
+      component: StudioPage,
+      meta: { requiresAuth: true, title: "仿真工作台" },
     },
     {
       path: "/app",
